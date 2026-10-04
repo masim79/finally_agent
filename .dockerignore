@@ -1,0 +1,45 @@
+# Keep the build context small and prevent stale local artifacts from
+# shadowing what the multi-stage build produces fresh.
+
+# Git
+.git/
+.github/
+
+# Frontend
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# Backend
+backend/.venv/
+backend/**/__pycache__/
+**/__pycache__/
+*.pyc
+backend/.pytest_cache/
+backend/.ruff_cache/
+backend/htmlcov/
+backend/.coverage
+
+# Database (runtime data, never baked into the image)
+db/*.db
+db/*.db-journal
+db/*.db-wal
+db/*.db-shm
+
+# Tests (separate compose file / Playwright, not part of the app image)
+test/
+
+# Env and local tooling
+.env
+.env.*
+!.env.example
+.claude/
+.vscode/
+.idea/
+
+# Docs / misc
+planning/
+README.md
+LICENSE
+*.md
+!backend/README.md

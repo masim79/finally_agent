@@ -1,0 +1,43 @@
+x-app-env: &app-env
+  LLM_MOCK: "true"
+  FINALLY_DB_PATH: /app/db/finally.db
+  # Explicitly empty: a stray host .env must never leak into the E2E run, and mock mode must be
+  # provably reachable with zero keys (PLAN.md §5 / CONTRACTS.md §7).
+  OPENROUTER_API_KEY: ""
+  MASSIVE_API_KEY: ""
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    environment:
+      <<: *app-env
+    # A tmpfs mount is always empty at container start — the simplest guarantee that every run
+    # begins from a clean database with no leftover state from a previous run, no explicit
+    # cleanup step required. uid/gid 1000 matches the Dockerfile's non-root `appuser`, who owns
+    # /app/db and needs to create finally.db inside it.
+    tmpfs:
+      - /app/db:uid=1000,gid=1000,mode=0755
+    ports:
+      - "8000:8000"
+    # Dockerfile already declares HEALTHCHECK against /api/health; `condition: service_healthy`
+    # below rides on that rather than redefining it here.
+
+  playwright:
+    # INVARIANT: this tag MUST equal the exact version `@playwright/test` resolves to in
+    # package-lock.json (see package.json's pinned, non-caret dependency). `command` below runs
+    # `npm ci`, which installs that exact client into this image; a mismatched image tag ships
+    # browser binary revisions the client doesn't expect, and every spec fails before running with
+    # "Executable doesn't exist at /ms-playwright/...". Bump both together, never one alone.
+    image: mcr.microsoft.com/playwright:v1.63.0-noble
+    working_dir: /tests
+    volumes:
+      - ./:/tests
+    environment:
+      BASE_URL: http://app:8000
+      CI: "true"
+    depends_on:
+      app:
+        condition: service_healthy
+    command: sh -c "npm ci && npx playwright test --reporter=list"
